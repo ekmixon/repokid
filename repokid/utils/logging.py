@@ -39,10 +39,9 @@ def log_deleted_and_repoed_policies(
     """
     for name in deleted_policy_names:
         LOGGER.info(
-            "Would delete policy from {} with name {} in account {}".format(
-                role_name, name, account_number
-            )
+            f"Would delete policy from {role_name} with name {name} in account {account_number}"
         )
+
 
     if repoed_policies:
         LOGGER.info(

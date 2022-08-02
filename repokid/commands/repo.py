@@ -90,18 +90,16 @@ def _rollback_role(
     """
     errors = []
 
-    role_id = find_role_in_cache(role_name, account_number)
-    if not role_id:
-        message = "Could not find role with name {} in account {}".format(
-            role_name, account_number
-        )
-        errors.append(message)
-        LOGGER.warning(message)
-        return errors
-    else:
+    if role_id := find_role_in_cache(role_name, account_number):
         role = Role(role_id=role_id)
         role.fetch()
 
+    else:
+        message = f"Could not find role with name {role_name} in account {account_number}"
+
+        errors.append(message)
+        LOGGER.warning(message)
+        return errors
     # no option selected, display a table of options
     if selection < 0:
         headers = ["Number", "Source", "Discovered", "Permissions", "Services"]
@@ -130,7 +128,7 @@ def _rollback_role(
     pp = pprint.PrettyPrinter()
 
     print("Will restore the following policies:")
-    pp.pprint(role.policies[int(selection)]["Policy"])
+    pp.pprint(role.policies[selection]["Policy"])
 
     print("Current policies:")
     pp.pprint(current_policies)
@@ -142,7 +140,7 @@ def _rollback_role(
     restored_permissions = selected_permissions - current_permissions
 
     print("\nResore will return these permissions:")
-    print("\n".join([perm for perm in sorted(restored_permissions)]))
+    print("\n".join(list(sorted(restored_permissions))))
 
     if not commit:
         return errors
@@ -152,7 +150,7 @@ def _rollback_role(
     # from the list as we update.  Any policy names left need to be manually removed
     policies_to_remove = current_policies.keys()
 
-    for policy_name, policy in role.policies[int(selection)]["Policy"].items():
+    for policy_name, policy in role.policies[selection]["Policy"].items():
         try:
             LOGGER.info(
                 f"Pushing cached policy: {policy_name} (role: {role.role_name} account {account_number})"
@@ -246,12 +244,9 @@ def _repo_all_roles(
         return
 
     LOGGER.info(
-        "Repoing these {}roles from account {}:\n\t{}".format(
-            "scheduled " if scheduled else "",
-            account_number,
-            ", ".join([role.role_name for role in roles]),
-        )
+        f'Repoing these {"scheduled " if scheduled else ""}roles from account {account_number}:\n\t{", ".join([role.role_name for role in roles])}'
     )
+
 
     repokid.hooks.call_hooks(
         hooks, "BEFORE_REPO_ROLES", {"account_number": account_number, "roles": roles}
@@ -262,8 +257,7 @@ def _repo_all_roles(
     for role in roles:
         if limit >= 0 and count == limit:
             break
-        role_errors = role.repo(hooks, commit=commit, scheduled=scheduled)
-        if role_errors:
+        if role_errors := role.repo(hooks, commit=commit, scheduled=scheduled):
             errors.extend(role_errors)
         repoed.append(role)
         count += 1
@@ -316,20 +310,20 @@ def _repo_stats(output_file: str, account_number: str = "") -> None:
     )
 
     for role in roles:
-        for stats_entry in role.stats:
-            rows.append(
-                [
-                    role.role_id,
-                    role.role_name,
-                    role.account,
-                    role.active,
-                    stats_entry["Date"],
-                    stats_entry["Source"],
-                    stats_entry["PermissionsCount"],
-                    stats_entry.get("RepoablePermissionsCount", 0),
-                    stats_entry.get("DisqualifiedBy", []),
-                ]
-            )
+        rows.extend(
+            [
+                role.role_id,
+                role.role_name,
+                role.account,
+                role.active,
+                stats_entry["Date"],
+                stats_entry["Source"],
+                stats_entry["PermissionsCount"],
+                stats_entry.get("RepoablePermissionsCount", 0),
+                stats_entry.get("DisqualifiedBy", []),
+            ]
+            for stats_entry in role.stats
+        )
 
     try:
         with open(output_file, "w") as csvfile:
@@ -338,8 +332,6 @@ def _repo_stats(output_file: str, account_number: str = "") -> None:
             for row in rows:
                 csv_writer.writerow(row)
     except IOError as e:
-        LOGGER.error(
-            "Unable to write file {}: {}".format(output_file, e), exc_info=True
-        )
+        LOGGER.error(f"Unable to write file {output_file}: {e}", exc_info=True)
     else:
-        LOGGER.info("Successfully wrote stats to {}".format(output_file))
+        LOGGER.info(f"Successfully wrote stats to {output_file}")

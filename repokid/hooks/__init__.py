@@ -27,7 +27,7 @@ def call_hooks(
     for func in hooks_dict[hook_name]:
         inputs_dict = func(inputs_dict)
         if not inputs_dict:
-            raise MissingOutputInHook("Function {} didn't return output".format(func))
+            raise MissingOutputInHook(f"Function {func} didn't return output")
     return inputs_dict
 
 

@@ -26,10 +26,7 @@ logger = logging.getLogger("repokid")
 
 class RepokidPlugin:
     def __init__(self, config: Optional[RepokidConfig] = None):
-        if config:
-            self.config = config
-        else:
-            self.config = CONFIG
+        self.config = config or CONFIG
 
 
 class M_A(type):
@@ -39,9 +36,10 @@ class M_A(type):
 class Singleton(M_A):
     _instances: Dict[str, Singleton] = {}
 
-    def __call__(cls, *args: Any, **kwargs: Any) -> Singleton:
-        if cls.__name__ not in cls._instances:
-            cls._instances[cls.__name__] = super(Singleton, cls).__call__(
+    def __call__(self, *args: Any, **kwargs: Any) -> Singleton:
+        if self.__name__ not in self._instances:
+            self._instances[self.__name__] = super(Singleton, self).__call__(
                 *args, **kwargs
             )
-        return cls._instances[cls.__name__]
+
+        return self._instances[self.__name__]

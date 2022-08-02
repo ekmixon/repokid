@@ -74,7 +74,7 @@ class AccessAdvisorDatasource(
             try:
                 r_aardvark = requests.post(api_location, params=params, json=payload)
             except requests.exceptions.RequestException as e:
-                logger.exception("unable to get Aardvark data: {}".format(e))
+                logger.exception(f"unable to get Aardvark data: {e}")
                 raise AardvarkError("unable to get aardvark data")
             else:
                 if r_aardvark.status_code != 200:
@@ -93,13 +93,10 @@ class AccessAdvisorDatasource(
         return response_data
 
     def get(self, arn: str) -> AccessAdvisorEntry:
-        result = self._data.get(arn)
-        if result:
+        if result := self._data.get(arn):
             return result
 
-        # Try to get data from Aardvark
-        result = self._fetch(arn=arn).get(arn)
-        if result:
+        if result := self._fetch(arn=arn).get(arn):
             self._data[arn] = result
             return result
         raise NotFoundError
@@ -108,10 +105,9 @@ class AccessAdvisorDatasource(
         return filter(lambda x: x.split(":")[4] == account_number, self.keys())
 
     def seed(self, account_number: str) -> Iterable[str]:
-        if account_number not in self._seeded:
-            aa_data = self._fetch(account_number=account_number)
-            self._data.update(aa_data)
-            self._seeded.append(account_number)
-            return aa_data.keys()
-        else:
+        if account_number in self._seeded:
             return self._get_arns_for_account(account_number)
+        aa_data = self._fetch(account_number=account_number)
+        self._data.update(aa_data)
+        self._seeded.append(account_number)
+        return aa_data.keys()

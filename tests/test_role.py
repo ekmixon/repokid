@@ -378,7 +378,7 @@ def test_role_update_opt_out(role_dict):
     recent_dt = datetime.datetime.now() - datetime.timedelta(days=1)
     r.opt_out = {"expire": recent_dt.timestamp()}
     r._update_opt_out()
-    assert r.opt_out == {}
+    assert not r.opt_out
 
 
 def test_role_update_opt_out_future(role_dict):

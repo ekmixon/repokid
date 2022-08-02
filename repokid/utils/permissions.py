@@ -36,7 +36,7 @@ class RepoablePermissionDecision(object):
         self.decider: str = ""
 
     def __repr__(self) -> str:
-        return "Is repoable: {}, Decider: {}".format(self.repoable, self.decider)
+        return f"Is repoable: {self.repoable}, Decider: {self.decider}"
 
 
 def find_newly_added_permissions(
@@ -98,9 +98,7 @@ def convert_repoable_perms_to_perms_and_services(
         ):
             repoed_services.add(service)
         else:
-            repoed_permissions.update(
-                perm for perm in repoable_perms_by_service[service]
-            )
+            repoed_permissions.update(iter(repoable_perms_by_service[service]))
 
     return repoed_permissions, repoed_services
 
@@ -181,13 +179,14 @@ def get_repoable_permissions(
             role_name=role_name,
             account_number=account_number,
             repoable="".join(
-                "{}: {}\n".format(perm, decision.decider)
+                f"{perm}: {decision.decider}\n"
                 for perm, decision in list(
                     hooks_output["potentially_repoable_permissions"].items()
                 )
             ),
         )
     )
+
 
     return {
         permission_name
@@ -232,7 +231,7 @@ def get_permissions_in_policy(
 
     weird_permissions = total_permissions.difference(all_permissions)
     if weird_permissions and warn_unknown_perms:
-        logger.warning("Unknown permissions found: {}".format(weird_permissions))
+        logger.warning(f"Unknown permissions found: {weird_permissions}")
 
     return total_permissions, eligible_permissions
 
@@ -304,13 +303,13 @@ def _get_potentially_repoable_permissions(
         permission_decision,
     ) in potentially_repoable_permissions.items():
         if permission_name.split(":")[0] in IAM_ACCESS_ADVISOR_UNSUPPORTED_SERVICES:
-            logger.debug("skipping {}".format(permission_name))
+            logger.debug(f"skipping {permission_name}")
             continue
 
         # we have an unused service but need to make sure it's repoable
         if permission_name.split(":")[0] not in used_services:
             if permission_name in IAM_ACCESS_ADVISOR_UNSUPPORTED_ACTIONS:
-                logger.debug("skipping {}".format(permission_name))
+                logger.debug(f"skipping {permission_name}")
                 continue
 
             permission_decision.repoable = True
@@ -334,9 +333,8 @@ def _get_epoch_authenticated(service_authenticated: int) -> Tuple[int, bool]:
     if service_authenticated == 0:
         return 0, True
 
-    # we have an odd timestamp, try to check
     elif BEGINNING_OF_2015_MILLI_EPOCH < service_authenticated < (current_time * 1000):
-        return int(service_authenticated / 1000), True
+        return service_authenticated // 1000, True
 
     elif (BEGINNING_OF_2015_MILLI_EPOCH / 1000) < service_authenticated < current_time:
         return service_authenticated, True

@@ -50,7 +50,7 @@ def _schedule_repo(
         if not role.aa_data:
             LOGGER.warning("Not scheduling %s; missing Access Advisor data", role.arn)
             continue
-        if not role.repoable_permissions > 0:
+        if role.repoable_permissions <= 0:
             LOGGER.debug("Not scheduling %s; no repoable permissions", role.arn)
             continue
         if role.repo_scheduled:
@@ -73,12 +73,9 @@ def _schedule_repo(
         scheduled_roles.append(role)
 
     LOGGER.info(
-        "Scheduled repo for {} days from now for account {} and these roles:\n\t{}".format(
-            config.get("repo_schedule_period_days", 7),
-            account_number,
-            ", ".join([r.role_name for r in scheduled_roles]),
-        )
+        f'Scheduled repo for {config.get("repo_schedule_period_days", 7)} days from now for account {account_number} and these roles:\n\t{", ".join([r.role_name for r in scheduled_roles])}'
     )
+
 
     repokid.hooks.call_hooks(hooks, "AFTER_SCHEDULE_REPO", {"roles": scheduled_roles})
 
@@ -94,18 +91,16 @@ def _show_scheduled_roles(account_number: str) -> None:
     roles = roles.get_active().get_scheduled()
 
     header = ["Role name", "Scheduled", "Scheduled Time Elapsed?"]
-    rows = []
-
     curtime = int(time.time())
 
-    for role in roles:
-        rows.append(
-            [
-                role.role_name,
-                dt.fromtimestamp(role.repo_scheduled).strftime("%Y-%m-%d %H:%M"),
-                role.repo_scheduled < curtime,
-            ]
-        )
+    rows = [
+        [
+            role.role_name,
+            dt.fromtimestamp(role.repo_scheduled).strftime("%Y-%m-%d %H:%M"),
+            role.repo_scheduled < curtime,
+        ]
+        for role in roles
+    ]
 
     print(tabulate(rows, headers=header))
 
@@ -136,10 +131,9 @@ def _cancel_scheduled_repo(
                 LOGGER.exception("failed to store role", exc_info=True)
 
         LOGGER.info(
-            "Canceled scheduled repo for roles: {}".format(
-                ", ".join([role.role_name for role in roles])
-            )
+            f'Canceled scheduled repo for roles: {", ".join([role.role_name for role in roles])}'
         )
+
         return
 
     role_id = find_role_in_cache(role_name, account_number)
@@ -154,10 +148,9 @@ def _cancel_scheduled_repo(
 
     if not role.repo_scheduled:
         LOGGER.warning(
-            "Repo was not scheduled for role {} in account {}".format(
-                role.role_name, account_number
-            )
+            f"Repo was not scheduled for role {role.role_name} in account {account_number}"
         )
+
         return
 
     role.repo_scheduled = 0
@@ -169,7 +162,5 @@ def _cancel_scheduled_repo(
         raise
 
     LOGGER.info(
-        "Successfully cancelled scheduled repo for role {} in account {}".format(
-            role.role_name, role.account
-        )
+        f"Successfully cancelled scheduled repo for role {role.role_name} in account {role.account}"
     )

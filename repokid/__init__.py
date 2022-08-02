@@ -53,12 +53,12 @@ def init_config() -> RepokidConfig:
             continue
         try:
             with open(path, "r") as f:
-                print("Loaded config from {}".format(path))
+                print(f"Loaded config from {path}")
                 config = json.load(f)
                 return config
 
         except IOError:
-            print("Unable to load config from {}, trying next location".format(path))
+            print(f"Unable to load config from {path}, trying next location")
 
     print("Config not found in any path, using defaults")
     return config

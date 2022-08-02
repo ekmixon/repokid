@@ -51,7 +51,7 @@ def func_c(input_dict):
 
 def func_d(input_value):
     required_vals = ["a", "b"]
-    if not all(val in input_value for val in required_vals):
+    if any(val not in input_value for val in required_vals):
         raise repokid.hooks.MissingHookParameter
 
 

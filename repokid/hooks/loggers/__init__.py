@@ -11,7 +11,9 @@ LOGGER = logging.getLogger("repokid")
 @hooks.implements_hook("BEFORE_REPO_ROLES", 1)
 def log_before_repo_roles(input_dict: RepokidHookInput) -> RepokidHookOutput:
     LOGGER.debug("Calling DURING_REPOABLE_CALCULATION hooks")
-    if not all(required in input_dict for required in ["account_number", "roles"]):
+    if any(
+        required not in input_dict for required in ["account_number", "roles"]
+    ):
         raise hooks.MissingHookParameter(
             "Did not get all required parameters for BEFORE_REPO_ROLES hook"
         )
@@ -23,8 +25,8 @@ def log_during_repoable_calculation_hooks(
     input_dict: RepokidHookInput,
 ) -> RepokidHookOutput:
     LOGGER.debug("Calling DURING_REPOABLE_CALCULATION hooks")
-    if not all(
-        required in input_dict
+    if any(
+        required not in input_dict
         for required in [
             "account_number",
             "role_name",
@@ -44,8 +46,8 @@ def log_during_repoable_calculation_batch_hooks(
 ) -> RepokidHookOutput:
     LOGGER.debug("Calling DURING_REPOABLE_CALCULATION_BATCH hooks")
 
-    if not all(
-        required in input_dict
+    if any(
+        required not in input_dict
         for required in [
             "role_batch",
             "potentially_repoable_permissions",

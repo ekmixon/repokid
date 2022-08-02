@@ -121,9 +121,7 @@ class Role(BaseModel):
         underscore_attrs_are_private = True
 
     def __eq__(self, other: object) -> bool:
-        if not self.arn:
-            return False
-        return self.arn == other
+        return self.arn == other if self.arn else False
 
     def __hash__(self) -> int:
         return hash(self.arn)
@@ -157,9 +155,7 @@ class Role(BaseModel):
 
     @validator("config")
     def fix_none_config(cls, v: Optional[RepokidConfig]) -> RepokidConfig:
-        if v is None:
-            return CONFIG
-        return v
+        return CONFIG if v is None else v
 
     def add_policy_version(
         self,
@@ -236,11 +232,13 @@ class Role(BaseModel):
     def get_permissions_for_policy_version(
         self, selection: int = -1, warn_unknown_perms: bool = False
     ) -> Tuple[Set[str], Set[str]]:
-        if not self.policies:
-            return set(), set()
-
-        return get_permissions_in_policy(
-            self.policies[selection]["Policy"], warn_unknown_perms=warn_unknown_perms
+        return (
+            get_permissions_in_policy(
+                self.policies[selection]["Policy"],
+                warn_unknown_perms=warn_unknown_perms,
+            )
+            if self.policies
+            else (set(), set())
         )
 
     def _calculate_no_repo_permissions(self) -> None:
@@ -307,8 +305,7 @@ class Role(BaseModel):
             return False, "no Access Advisor data available"
         if not self.repoable_permissions and not self.scheduled_perms:
             return False, "no repoable permissions"
-        stale_aa_services = self._stale_aa_services()
-        if stale_aa_services:
+        if stale_aa_services := self._stale_aa_services():
             return (
                 False,
                 f"stale Access Advisor data for {', '.join(stale_aa_services)}",
@@ -321,9 +318,12 @@ class Role(BaseModel):
         )
         stale_services = []
         if self.aa_data:
-            for service in self.aa_data:
-                if ts_parse(service["lastUpdated"], ignoretz=True) < thresh:
-                    stale_services.append(service["serviceName"])
+            stale_services.extend(
+                service["serviceName"]
+                for service in self.aa_data
+                if ts_parse(service["lastUpdated"], ignoretz=True) < thresh
+            )
+
         return stale_services
 
     def _update_opt_out(self) -> None:
@@ -371,11 +371,9 @@ class Role(BaseModel):
     def _fetch_iam_data(self) -> IAMEntry:
         iam_datasource = IAMDatasource()
         role_data = iam_datasource.get(self.arn)
-        role_id = role_data.get("RoleId")
-        if role_id:
+        if role_id := role_data.get("RoleId"):
             self.role_id = role_id
-        create_date = role_data.get("CreateDate")
-        if create_date:
+        if create_date := role_data.get("CreateDate"):
             self.create_date = create_date
         return role_data
 
@@ -548,8 +546,9 @@ class Role(BaseModel):
             "RepoablePermissionsCount",
         ]
         changed = any(
-            [new_stats.get(item) != cur_stats.get(item) for item in check_fields]
+            new_stats.get(item) != cur_stats.get(item) for item in check_fields
         )
+
         if changed:
             self.stats.append(new_stats)
         if store:
@@ -577,9 +576,9 @@ class Role(BaseModel):
 
         if inline_policies_size_exceeds_maximum(repoed_policies):
             logger.error(
-                "Policies would exceed the AWS size limit after repo for role: {} in account {}.  "
-                "Please manually minify.".format(self.role_name, self.account)
+                f"Policies would exceed the AWS size limit after repo for role: {self.role_name} in account {self.account}.  Please manually minify."
             )
+
             return
 
         if not commit:
@@ -644,10 +643,8 @@ class Role(BaseModel):
             return errors
 
         if inline_policies_size_exceeds_maximum(repoed_policies):
-            error = (
-                "Policies would exceed the AWS size limit after repo for role: {} in account {}.  "
-                "Please manually minify.".format(self.role_name, self.account)
-            )
+            error = f"Policies would exceed the AWS size limit after repo for role: {self.role_name} in account {self.account}.  Please manually minify."
+
             logger.error(error)
             errors.append(error)
             self.repo_scheduled = 0
@@ -694,10 +691,9 @@ class Role(BaseModel):
             self.repoed = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
             update_repoed_description(self.role_name, conn)
             logger.info(
-                "Successfully repoed role: {} in account {}".format(
-                    self.role_name, self.account
-                )
+                f"Successfully repoed role: {self.role_name} in account {self.account}"
             )
+
         try:
             self.store()
         except RoleStoreError:
@@ -736,10 +732,7 @@ class RoleList(object):
         return str([role.arn for role in self.roles])
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, RoleList):
-            return False
-
-        return repr(self) == repr(other)
+        return repr(self) == repr(other) if isinstance(other, RoleList) else False
 
     def __iter__(self) -> RoleList:
         self._iter_index = 0
@@ -747,12 +740,11 @@ class RoleList(object):
         return self
 
     def __next__(self) -> Role:
-        if self._iter_index < self._len:
-            result = self[self._iter_index]
-            self._iter_index += 1
-            return result
-        else:
+        if self._iter_index >= self._len:
             raise StopIteration
+        result = self[self._iter_index]
+        self._iter_index += 1
+        return result
 
     @classmethod
     def from_ids(

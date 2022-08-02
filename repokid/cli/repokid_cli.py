@@ -165,14 +165,17 @@ class AliasedGroup(Group):
     """AliasedGroup provides backward compatibility with the previous Repokid CLI commands"""
 
     def get_command(self, ctx: Context, cmd_name: str) -> Optional[Command]:
-        rv = Group.get_command(self, ctx, cmd_name)
-        if rv:
+        if rv := Group.get_command(self, ctx, cmd_name):
             return rv
         dashed = cmd_name.replace("_", "-")
-        for cmd in self.list_commands(ctx):
-            if cmd == dashed:
-                return Group.get_command(self, ctx, cmd)
-        return None
+        return next(
+            (
+                Group.get_command(self, ctx, cmd)
+                for cmd in self.list_commands(ctx)
+                if cmd == dashed
+            ),
+            None,
+        )
 
 
 @group(cls=AliasedGroup)
@@ -180,11 +183,7 @@ class AliasedGroup(Group):
 def cli(ctx: Context) -> None:
     ctx.ensure_object(dict)
 
-    if not CONFIG:
-        config = _generate_default_config()
-    else:
-        config = CONFIG
-
+    config = CONFIG or _generate_default_config()
     ctx.obj["config"] = config
     ctx.obj["hooks"] = get_hooks(config.get("hooks", ["repokid.hooks.loggers"]))
 

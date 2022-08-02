@@ -69,19 +69,19 @@ def _display_roles(account_number: str, inactive: bool = False) -> None:
     if not inactive:
         roles = roles.get_active()
 
-    for role in roles:
-        rows.append(
-            [
-                role.role_name,
-                role.refreshed,
-                role.disqualified_by,
-                len(role.disqualified_by) == 0,
-                role.total_permissions,
-                role.repoable_permissions,
-                role.repoed,
-                role.repoable_services,
-            ]
-        )
+    rows.extend(
+        [
+            role.role_name,
+            role.refreshed,
+            role.disqualified_by,
+            len(role.disqualified_by) == 0,
+            role.total_permissions,
+            role.repoable_permissions,
+            role.repoed,
+            role.repoable_services,
+        ]
+        for role in roles
+    )
 
     rows = sorted(rows, key=lambda x: (x[5], x[0], x[4]))
     rows.insert(0, headers)
@@ -105,7 +105,7 @@ def _find_roles_with_permissions(permissions: List[str], output_file: str) -> No
     Returns:
         None
     """
-    arns: List[str] = list()
+    arns: List[str] = []
     role_ids = role_arns_for_all_accounts()
     roles = RoleList.from_ids(
         role_ids, fields=["Policies", "RoleName", "Arn", "Active"]
@@ -113,7 +113,7 @@ def _find_roles_with_permissions(permissions: List[str], output_file: str) -> No
     for role in roles:
         role_permissions, _ = role.get_permissions_for_policy_version()
 
-        permissions_set = set([p.lower() for p in permissions])
+        permissions_set = {p.lower() for p in permissions}
         found_permissions = permissions_set.intersection(role_permissions)
 
         if found_permissions and role.active:
@@ -156,7 +156,7 @@ def _display_role(
     """
     role_id = find_role_in_cache(role_name, account_number)
     if not role_id:
-        LOGGER.warning("Could not find role with name {}".format(role_name))
+        LOGGER.warning(f"Could not find role with name {role_name}")
         return
 
     role = Role(role_id=role_id)
@@ -205,21 +205,21 @@ def _display_role(
 
     print("Stats:")
     headers = ["Date", "Event Type", "Permissions Count", "Disqualified By"]
-    rows = []
-    for stats_entry in role.stats:
-        rows.append(
-            [
-                stats_entry["Date"],
-                stats_entry["Source"],
-                stats_entry["PermissionsCount"],
-                stats_entry.get("DisqualifiedBy", []),
-            ]
-        )
+    rows = [
+        [
+            stats_entry["Date"],
+            stats_entry["Source"],
+            stats_entry["PermissionsCount"],
+            stats_entry.get("DisqualifiedBy", []),
+        ]
+        for stats_entry in role.stats
+    ]
+
     print(tabulate(rows, headers=headers) + "\n\n")
 
     # can't do anymore if we don't have AA data
     if not role.aa_data:
-        LOGGER.warning("ARN not found in Access Advisor: {}".format(role.arn))
+        LOGGER.warning(f"ARN not found in Access Advisor: {role.arn}")
         return
 
     warn_unknown_permissions = config.get("warnings", {}).get(
@@ -260,8 +260,7 @@ def _display_role(
     # need to check if all policies would be too large
     if inline_policies_size_exceeds_maximum(repoed_policies):
         LOGGER.warning(
-            "Policies would exceed the AWS size limit after repo for role: {}.  "
-            "Please manually minify.".format(role_name)
+            f"Policies would exceed the AWS size limit after repo for role: {role_name}.  Please manually minify."
         )
 
 

@@ -78,9 +78,7 @@ def _empty_string_from_dynamo_replace(obj: T) -> T:
     elif isinstance(obj, list):
         return [_empty_string_from_dynamo_replace(elem) for elem in obj]
     else:
-        if isinstance(obj, str) and str == DYNAMO_EMPTY_STRING:
-            return ""
-        return obj
+        return "" if isinstance(obj, str) and str == DYNAMO_EMPTY_STRING else obj
 
 
 def _empty_string_to_dynamo_replace(
@@ -101,7 +99,7 @@ def _empty_string_to_dynamo_replace(
         return [_empty_string_to_dynamo_replace(elem) for elem in obj]
     else:
         try:
-            if str(obj) == "":
+            if not str(obj):
                 obj = DYNAMO_EMPTY_STRING
         except UnicodeEncodeError:
             obj = DYNAMO_EMPTY_STRING
@@ -122,30 +120,26 @@ def _datetime_to_string_replace(
 
 
 def _has_index(table: Table, index_name: str) -> bool:
-    for i in table.global_secondary_indexes:
-        if i["IndexName"] == index_name:
-            return True
-    return False
+    return any(
+        i["IndexName"] == index_name for i in table.global_secondary_indexes
+    )
 
 
 def _attributes_from_index(
     index: GlobalSecondaryIndexTypeDef,
 ) -> List[AttributeDefinitionTypeDef]:
-    attributes: List[AttributeDefinitionTypeDef] = []
-    for attribute in index["KeySchema"]:
-        attributes.append(
-            {"AttributeName": attribute["AttributeName"], "AttributeType": "S"}
-        )
-    return attributes
+    return [
+        {"AttributeName": attribute["AttributeName"], "AttributeType": "S"}
+        for attribute in index["KeySchema"]
+    ]
 
 
 def _ensure_indexes(
     table: Table, desired_indexes: List[GlobalSecondaryIndexTypeDef]
 ) -> None:
-    to_add: List[GlobalSecondaryIndexTypeDef] = []
-    for i in desired_indexes:
-        if not _has_index(table, i["IndexName"]):
-            to_add.append(i)
+    to_add: List[GlobalSecondaryIndexTypeDef] = [
+        i for i in desired_indexes if not _has_index(table, i["IndexName"])
+    ]
 
     index_updates = [{"Create": i} for i in to_add]
     attribute_updates = []
@@ -297,10 +291,7 @@ def set_role_data(
     update_expression = "SET "
     expression_attribute_names = {}
     expression_attribute_values = {}
-    count = 0
-    for key, value in update_keys.items():
-        count += 1
-
+    for count, (key, value) in enumerate(update_keys.items(), start=1):
         if count > 1:
             update_expression += ", "
 
@@ -368,10 +359,8 @@ def get_all_role_ids_for_account(
             ExpressionAttributeValues={":act": account_number},
             ExclusiveStartKey=results.get("LastEvaluatedKey") or {},
         )
-        items = results.get("Items")
-        if not items:
-            continue
-        role_ids.update([str(return_dict["RoleId"]) for return_dict in items])
+        if items := results.get("Items"):
+            role_ids.update([str(return_dict["RoleId"]) for return_dict in items])
     return role_ids
 
 
@@ -405,8 +394,7 @@ def find_role_in_cache(
             response = table.get_item(
                 Key={"RoleId": role_id}, AttributesToGet=["Account", "Active"]
             )
-            item = response.get("Item")
-            if item:
+            if item := response.get("Item"):
                 account = item.get("Account")
                 active = item.get("Active")
                 if active and account == account_number:
@@ -442,8 +430,7 @@ def role_arns_for_all_accounts(dynamo_table: Optional[Table] = None) -> List[str
     return role_ids
 
 
-dynamodb_config = CONFIG.get("dynamo_db")
-if dynamodb_config:
+if dynamodb_config := CONFIG.get("dynamo_db"):
     ROLE_TABLE = dynamo_get_or_create_table(**CONFIG["dynamo_db"])
 else:
     logger.warning("No DynamoDB config found; not creating table")

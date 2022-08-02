@@ -62,14 +62,14 @@ def _update_role_cache(
     # We only iterate over the newly-seeded data (`role_arns`) so we don't duplicate work for runs on multiple accounts
     roles = RoleList.from_arns(role_arns)
 
-    LOGGER.info("Updating role data for account {}".format(account_number))
+    LOGGER.info(f"Updating role data for account {account_number}")
     for role in tqdm(roles):
         role.account = account_number
         role.gather_role_data(hooks, config=config, source="Scan", store=False)
         # Reseting previous filters
-        role.disqualified_by = list()
+        role.disqualified_by = []
 
-    LOGGER.info("Finding inactive roles in account {}".format(account_number))
+    LOGGER.info(f"Finding inactive roles in account {account_number}")
     find_and_mark_inactive(account_number, roles)
 
     LOGGER.info("Filtering roles")
@@ -78,9 +78,7 @@ def _update_role_cache(
         filtered_list = plugin.apply(roles)
         class_name = plugin.__class__.__name__
         for filtered_role in filtered_list:
-            LOGGER.debug(
-                "Role {} filtered by {}".format(filtered_role.role_name, class_name)
-            )
+            LOGGER.debug(f"Role {filtered_role.role_name} filtered by {class_name}")
             # There may be existing duplicate records, so we do a dance here to dedupe them.
             disqualified_by = set(filtered_role.disqualified_by)
             disqualified_by.add(class_name)
@@ -91,13 +89,9 @@ def _update_role_cache(
             config["filter_config"]["AgeFilter"]["minimum_age"], hooks
         )
         LOGGER.debug(
-            "Role {} in account {} has\nrepoable permissions: {}\nrepoable services: {}".format(
-                role.role_name,
-                account_number,
-                role.repoable_permissions,
-                role.repoable_services,
-            )
+            f"Role {role.role_name} in account {account_number} has\nrepoable permissions: {role.repoable_permissions}\nrepoable services: {role.repoable_services}"
         )
 
-    LOGGER.info("Storing updated role data in account {}".format(account_number))
+
+    LOGGER.info(f"Storing updated role data in account {account_number}")
     roles.store()

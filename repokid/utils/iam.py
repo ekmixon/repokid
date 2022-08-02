@@ -44,15 +44,13 @@ def update_repoed_description(role_name: str, conn_details: Dict[str, Any]) -> N
             description,
         )
     else:
-        new_description = description + " ; Repokid repoed {}".format(date_string)
+        new_description = description + f" ; Repokid repoed {date_string}"
     # IAM role descriptions have a max length of 1000, if our new length would be longer, skip this
     if len(new_description) < 1000:
         client.update_role_description(RoleName=role_name, Description=new_description)
     else:
         LOGGER.error(
-            "Unable to set repo description ({}) for role {}, length would be too long".format(
-                new_description, role_name
-            )
+            f"Unable to set repo description ({new_description}) for role {role_name}, length would be too long"
         )
 
 
@@ -65,9 +63,7 @@ def inline_policies_size_exceeds_maximum(policies: Dict[str, Any]) -> bool:
         bool
     """
     exported_no_whitespace = json.dumps(policies, separators=(",", ":"))
-    if len(exported_no_whitespace) > MAX_AWS_POLICY_SIZE:
-        return True
-    return False
+    return len(exported_no_whitespace) > MAX_AWS_POLICY_SIZE
 
 
 def delete_policy(
@@ -85,10 +81,9 @@ def delete_policy(
         error (string) or None
     """
     LOGGER.info(
-        "Deleting policy with name {} from {} in account {}".format(
-            name, role_name, account_number
-        )
+        f"Deleting policy with name {name} from {role_name} in account {account_number}"
     )
+
     try:
         delete_role_policy(RoleName=role_name, PolicyName=name, **conn)
     except botocore.exceptions.ClientError as e:

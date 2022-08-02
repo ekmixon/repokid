@@ -109,14 +109,11 @@ def _get_repoable_permissions_batch(
         return {}
 
     repo_able_roles_batches = copy.deepcopy(repo_able_roles)
-    potentially_repoable_permissions_dict = {}
     repoable_dict = {}
     repoable_log_dict = {}
 
-    for role in repo_able_roles:
-        potentially_repoable_permissions_dict[
-            role.arn
-        ] = _get_potentially_repoable_permissions(
+    potentially_repoable_permissions_dict = {
+        role.arn: _get_potentially_repoable_permissions(
             role.role_name,
             role.account,
             role.aa_data or [],
@@ -124,6 +121,8 @@ def _get_repoable_permissions_batch(
             role.no_repo_permissions,
             minimum_age,
         )
+        for role in repo_able_roles
+    }
 
     while len(repo_able_roles_batches) > 0:
         role_batch = repo_able_roles_batches[:batch_size]
@@ -148,11 +147,12 @@ def _get_repoable_permissions_batch(
             }
             repoable_dict[role_arn] = repoable
             repoable_log_dict[role_arn] = "".join(
-                "{}: {}\n".format(perm, decision.decider)
+                f"{perm}: {decision.decider}\n"
                 for perm, decision in list(
                     output["potentially_repoable_permissions"].items()
                 )
             )
+
 
     for role in repo_able_roles:
         LOGGER.debug(

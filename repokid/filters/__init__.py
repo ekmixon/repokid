@@ -28,13 +28,13 @@ class FilterPlugins:
         try:
             cls = import_string(module)
         except ImportError as e:
-            LOGGER.warn("Unable to find plugin {}, exception: {}".format(module, e))
+            LOGGER.warn(f"Unable to find plugin {module}, exception: {e}")
         else:
             try:
                 plugin = cls(config=config)
             except KeyError:
                 plugin = cls()
-            LOGGER.info("Loaded plugin {}".format(module))
+            LOGGER.info(f"Loaded plugin {module}")
             self.filter_plugins.append(plugin)
 
 

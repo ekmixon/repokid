@@ -83,10 +83,11 @@ class BlocklistFilter(Filter):
             )
 
         self.blocklisted_arns: Set[str] = (
-            set()
-            if not BlocklistFilter.blocklist_json
-            else set(BlocklistFilter.blocklist_json.get("arns", []))
+            set(BlocklistFilter.blocklist_json.get("arns", []))
+            if BlocklistFilter.blocklist_json
+            else set()
         )
+
         self.blocklisted_role_names = blocklisted_role_names
 
     @classmethod
@@ -95,10 +96,9 @@ class BlocklistFilter(Filter):
             LOGGER.error("No config provided for blocklist filter")
             raise BlocklistError("No config provided for blocklist filter")
         if not cls.blocklist_json:
-            bucket_config = config.get(
+            if bucket_config := config.get(
                 "blocklist_bucket", config.get("blacklist_bucket", {})
-            )
-            if bucket_config:
+            ):
                 cls.blocklist_json = get_blocklist_from_bucket(bucket_config)
 
     def apply(self, input_list: RoleList) -> RoleList:

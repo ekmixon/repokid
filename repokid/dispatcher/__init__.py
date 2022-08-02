@@ -37,16 +37,7 @@ def implements_command(
 
 @implements_command("list_repoable_services")
 def list_repoable_services(message: Message) -> ResponderReturn:
-    role_id = find_role_in_cache(message.role_name, message.account)
-
-    if not role_id:
-        return ResponderReturn(
-            successful=False,
-            return_message="Unable to find role {} in account {}".format(
-                message.role_name, message.account
-            ),
-        )
-    else:
+    if role_id := find_role_in_cache(message.role_name, message.account):
         role = Role(role_id=role_id)
         role.fetch(fields=["RepoableServices"])
 
@@ -57,14 +48,18 @@ def list_repoable_services(message: Message) -> ResponderReturn:
 
         return ResponderReturn(
             successful=True,
-            return_message=(
-                "Role {} in account {} has:\n    Repoable Services: \n{}\n\n    Repoable Permissions: \n{}".format(
-                    message.role_name,
-                    message.account,
-                    "\n".join([service for service in repoable_services]),
-                    "\n".join([perm for perm in repoable_permissions]),
-                )
+            return_message="Role {} in account {} has:\n    Repoable Services: \n{}\n\n    Repoable Permissions: \n{}".format(
+                message.role_name,
+                message.account,
+                "\n".join(list(repoable_services)),
+                "\n".join(list(repoable_permissions)),
             ),
+        )
+
+    else:
+        return ResponderReturn(
+            successful=False,
+            return_message=f"Unable to find role {message.role_name} in account {message.account}",
         )
 
 
@@ -75,16 +70,14 @@ def list_role_rollbacks(message: Message) -> ResponderReturn:
     if not role_id:
         return ResponderReturn(
             successful=False,
-            return_message="Unable to find role {} in account {}".format(
-                message.role_name, message.account
-            ),
+            return_message=f"Unable to find role {message.role_name} in account {message.account}",
         )
+
 
     role = Role(role_id=role_id)
     role.fetch(fields=["Policies"])
-    return_val = "Restorable versions for role {} in account {}\n".format(
-        message.role_name, message.account
-    )
+    return_val = f"Restorable versions for role {message.role_name} in account {message.account}\n"
+
     for index, policy_version in enumerate(role.policies):
         total_permissions, _ = get_permissions_in_policy(policy_version["Policy"])
         return_val += "({:>3}):  {:<5}     {:<15}  {}\n".format(
@@ -98,11 +91,7 @@ def list_role_rollbacks(message: Message) -> ResponderReturn:
 
 @implements_command("opt_out")
 def opt_out(message: Message) -> ResponderReturn:
-    if CONFIG:
-        opt_out_period = CONFIG.get("opt_out_period_days", 90)
-    else:
-        opt_out_period = 90
-
+    opt_out_period = CONFIG.get("opt_out_period_days", 90) if CONFIG else 90
     if not message.reason or not message.requestor:
         return ResponderReturn(
             successful=False, return_message="Reason and requestor must be specified"
@@ -113,10 +102,9 @@ def opt_out(message: Message) -> ResponderReturn:
     if not role_id:
         return ResponderReturn(
             successful=False,
-            return_message="Unable to find role {} in account {}".format(
-                message.role_name, message.account
-            ),
+            return_message=f"Unable to find role {message.role_name} in account {message.account}",
         )
+
 
     role = Role(role_id=role_id)
     role.fetch(fields=["OptOut"])
@@ -124,17 +112,9 @@ def opt_out(message: Message) -> ResponderReturn:
         timestr = time.strftime("%m/%d/%y", time.localtime(role.opt_out["expire"]))
         return ResponderReturn(
             successful=False,
-            return_message=(
-                "Role {} in account {} is already opted out by {} for reason {} "
-                "until {}".format(
-                    message.role_name,
-                    message.account,
-                    role.opt_out["owner"],
-                    role.opt_out["reason"],
-                    timestr,
-                )
-            ),
+            return_message=f'Role {message.role_name} in account {message.account} is already opted out by {role.opt_out["owner"]} for reason {role.opt_out["reason"]} until {timestr}',
         )
+
     else:
         current_dt = datetime.datetime.fromtimestamp(time.time())
         expire_dt = current_dt + datetime.timedelta(opt_out_period)
@@ -154,9 +134,7 @@ def opt_out(message: Message) -> ResponderReturn:
             )
         return ResponderReturn(
             successful=True,
-            return_message="Role {} in account {} opted-out until {}".format(
-                message.role_name, message.account, expire_dt.strftime("%m/%d/%y")
-            ),
+            return_message=f'Role {message.role_name} in account {message.account} opted-out until {expire_dt.strftime("%m/%d/%y")}',
         )
 
 
@@ -167,10 +145,9 @@ def remove_opt_out(message: Message) -> ResponderReturn:
     if not role_id:
         return ResponderReturn(
             successful=False,
-            return_message="Unable to find role {} in account {}".format(
-                message.role_name, message.account
-            ),
+            return_message=f"Unable to find role {message.role_name} in account {message.account}",
         )
+
 
     role = Role(role_id=role_id)
     role.fetch(fields=["OptOut"])
@@ -178,25 +155,21 @@ def remove_opt_out(message: Message) -> ResponderReturn:
     if not role.opt_out:
         return ResponderReturn(
             successful=False,
-            return_message="Role {} in account {} wasn't opted out".format(
-                message.role_name, message.account
-            ),
+            return_message=f"Role {message.role_name} in account {message.account} wasn't opted out",
         )
-    else:
-        role.opt_out = {}
-        try:
-            role.store(fields=["opt_out"])
-        except RoleStoreError:
-            return ResponderReturn(
-                successful=False,
-                return_message=f"Failed to cancel opt out for role {message.role_name} in account {message.account}",
-            )
+
+    role.opt_out = {}
+    try:
+        role.store(fields=["opt_out"])
+    except RoleStoreError:
         return ResponderReturn(
-            successful=True,
-            return_message="Cancelled opt-out for role {} in account {}".format(
-                message.role_name, message.account
-            ),
+            successful=False,
+            return_message=f"Failed to cancel opt out for role {message.role_name} in account {message.account}",
         )
+    return ResponderReturn(
+        successful=True,
+        return_message=f"Cancelled opt-out for role {message.role_name} in account {message.account}",
+    )
 
 
 @implements_command("rollback_role")
@@ -206,22 +179,21 @@ def rollback_role(message: Message) -> ResponderReturn:
             successful=False, return_message="Rollback must contain a selection number"
         )
 
-    errors = _rollback_role(
+    if errors := _rollback_role(
         message.account,
         message.role_name,
         CONFIG,
         hooks,
         selection=int(message.selection),
         commit=True,
-    )
-    if errors:
+    ):
         return ResponderReturn(
-            successful=False, return_message="Errors during rollback: {}".format(errors)
+            successful=False,
+            return_message=f"Errors during rollback: {errors}",
         )
+
     else:
         return ResponderReturn(
             successful=True,
-            return_message="Successfully rolled back role {} in account {}".format(
-                message.role_name, message.account
-            ),
+            return_message=f"Successfully rolled back role {message.role_name} in account {message.account}",
         )

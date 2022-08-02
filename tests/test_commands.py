@@ -357,11 +357,10 @@ class TestRepokidCLI(object):
             "AROAABCDEFGHIJKLMNOPD",
         ]
 
-        test_roles = []
-        for x, role in enumerate(ROLES_FOR_DISPLAY):
-            test_roles.append(
-                role.copy(update=Role(**ROLES[x]).dict(exclude_unset=True))
-            )
+        test_roles = [
+            role.copy(update=Role(**ROLES[x]).dict(exclude_unset=True))
+            for x, role in enumerate(ROLES_FOR_DISPLAY)
+        ]
 
         # loop over all roles twice (one for each call below)
         mock_role_list_from_ids.return_value = RoleList(
@@ -694,7 +693,7 @@ class TestRepokidCLI(object):
         assert "warnings" in generated_config
 
     def test_inline_policies_size_exceeds_maximum(self):
-        small_policy = dict()
+        small_policy = {}
         assert not repokid.utils.iam.inline_policies_size_exceeds_maximum(small_policy)
 
         backup_size = repokid.utils.iam.MAX_AWS_POLICY_SIZE
@@ -759,7 +758,7 @@ class TestRepokidCLI(object):
 
         with raises(IAMError):
             repokid.utils.iam.delete_policy(
-                "PolicyName", mock_role.role_name, "123456789012", dict()
+                "PolicyName", mock_role.role_name, "123456789012", {}
             )
 
     def test_replace_policies(self):

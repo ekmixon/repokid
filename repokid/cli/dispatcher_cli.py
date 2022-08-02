@@ -87,8 +87,9 @@ def main() -> None:
             if parsed_msg.errors:
                 failure_message = get_failure_message(
                     channel=parsed_msg.respond_channel,
-                    message="Malformed message: {}".format(parsed_msg.errors),
+                    message=f"Malformed message: {parsed_msg.errors}",
                 )
+
                 send_message(failure_message, conn_details)
                 continue
 
@@ -97,16 +98,15 @@ def main() -> None:
             except KeyError:
                 failure_message = get_failure_message(
                     channel=parsed_msg.respond_channel,
-                    message="Unknown function {}".format(parsed_msg.command),
+                    message=f"Unknown function {parsed_msg.command}",
                 )
+
                 send_message(failure_message, conn_details)
                 continue
 
             send_message(
                 {
-                    "message": "@{} {}".format(
-                        parsed_msg.respond_user, return_val.return_message
-                    ),
+                    "message": f"@{parsed_msg.respond_user} {return_val.return_message}",
                     "channel": parsed_msg.respond_channel,
                     "title": "Repokid Success"
                     if return_val.successful

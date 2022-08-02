@@ -45,7 +45,7 @@ class IAMDatasource(DatasourcePlugin[str, IAMEntry], metaclass=Singleton):
         auth_details_by_id = {item["Arn"]: item for item in auth_details}
         self._arn_to_id.update({item["Arn"]: item["RoleId"] for item in auth_details})
         # convert policies list to dictionary to maintain consistency with old call which returned a dict
-        for _, data in auth_details_by_id.items():
+        for data in auth_details_by_id.values():
             data["RolePolicyList"] = {
                 item["PolicyName"]: item["PolicyDocument"]
                 for item in data["RolePolicyList"]
@@ -66,18 +66,15 @@ class IAMDatasource(DatasourcePlugin[str, IAMEntry], metaclass=Singleton):
 
     def get(self, arn: str) -> IAMEntry:
         result = self._data.get(arn)
-        if not result:
-            return self._fetch(arn)
-        return result
+        return result or self._fetch(arn)
 
     def get_id_for_arn(self, arn: str) -> Optional[str]:
         return self._arn_to_id.get(arn)
 
     def _get_ids_for_account(self, account_number: str) -> Iterable[str]:
-        ids_for_account = [
+        return [
             k for k, v in self.items() if v["Arn"].split(":")[4] == account_number
         ]
-        return ids_for_account
 
     def seed(self, account_number: str) -> Iterable[str]:
         if account_number in self._seeded:
